@@ -1,0 +1,58 @@
+@page
+@model SmAsia.Web.Pages.Stock.CountModel
+@{ ViewData["Title"] = "Stock count"; }
+
+<div class="page-head">
+    <div><h1>Stock count</h1><div class="sub">Pick an aisle or category, enter what's on the shelf, and post. Blank rows are left unchanged.</div></div>
+    <a class="btn btn-outline-secondary" href="/products?handler=Export&location=@Model.Location&categoryId=@Model.CategoryId"><i class="bi bi-file-earmark-excel"></i> Printable count sheet</a>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+    <form method="get" class="filters">
+        <select name="location" class="form-select form-select-sm">
+            <option value="">Any location</option>
+            @foreach (var l in Model.Locations) { <option selected="@(l == Model.Location)">@l</option> }
+        </select>
+        <select name="categoryId" class="form-select form-select-sm">
+            <option value="">Any category</option>
+            @foreach (var c in Model.Categories) { <option value="@c.Id" selected="@(c.Id == Model.CategoryId)">@c.Name</option> }
+        </select>
+        <button class="btn btn-sm btn-primary">Load items</button>
+    </form>
+</div></div>
+
+@if (Model.Products.Count > 0)
+{
+    <form method="post">
+        <input type="hidden" asp-for="Location" /><input type="hidden" asp-for="CategoryId" />
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Product</th><th>Barcode</th><th>Location</th><th class="num">System qty</th><th class="num" style="width:130px">Counted</th><th style="width:170px">Nearest expiry</th></tr></thead>
+                    <tbody>
+                    @for (int i = 0; i < Model.Products.Count; i++)
+                    {
+                        var p = Model.Products[i];
+                        <tr>
+                            <td>@p.Name<input type="hidden" asp-for="Counts[i].ProductId" /></td>
+                            <td class="small">@p.Barcode</td>
+                            <td class="small">@p.Location</td>
+                            <td class="num">@Fmt.Qty(p.QtyOnHand)</td>
+                            <td><input class="form-control form-control-sm text-end" asp-for="Counts[i].Counted" type="number" step="any" min="0" /></td>
+                            <td><input class="form-control form-control-sm" asp-for="Counts[i].Expiry" type="date" /></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <div class="sticky-actions d-flex gap-2 align-items-center">
+                <input class="form-control" asp-for="Note" placeholder="Note (e.g. who counted)" style="max-width:300px" />
+                <button class="btn btn-primary" data-confirm="Post counts? Differences will be recorded as count adjustments."><i class="bi bi-check2-circle"></i> Post count</button>
+            </div>
+        </div>
+    </form>
+}
+else if (Model.Location != null || Model.CategoryId != null)
+{
+    <p class="muted">No products in this selection.</p>
+}

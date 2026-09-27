@@ -1,0 +1,68 @@
+@page
+@model SmAsia.Web.Pages.Receiving.UploadModel
+@{ ViewData["Title"] = "Receive delivery"; }
+
+<div class="page-head"><div><h1>Receive delivery</h1><div class="sub">Read a supplier invoice PDF, check it, then post it to stock.</div></div></div>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger"><ul class="mb-0">@foreach (var e in Model.Errors) { <li>@e</li> }</ul></div>
+}
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <form method="post" enctype="multipart/form-data" class="card">
+            <div class="card-header"><i class="bi bi-file-earmark-pdf text-danger"></i> From invoice PDF</div>
+            <div class="card-body">
+                <div class="dropzone mb-3">
+                    <i class="bi bi-cloud-arrow-up"></i>
+                    <p class="mb-2">Choose one or more supplier invoice PDFs</p>
+                    <input type="file" name="Files" accept=".pdf,application/pdf" multiple class="form-control" style="max-width:420px;margin:auto" required />
+                    <div class="small-muted mt-2">Recognised layouts: @string.Join(", ", Model.Parsers.Select(p => p.SupplierName))</div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Link to purchase order (optional)</label>
+                        <select class="form-select" asp-for="PoId">
+                            <option value="">— none —</option>
+                            @foreach (var po in Model.OpenPos) { <option value="@po.Id">@po.PoNumber · @po.Supplier.Name · @Fmt.Date(po.OrderDate)</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Invoice layout</label>
+                        <select class="form-select" asp-for="ParserKey">
+                            <option value="">Detect automatically</option>
+                            @foreach (var p in Model.Parsers) { <option value="@p.Key">@p.SupplierName</option> }
+                        </select>
+                    </div>
+                    <div class="col-12"><div class="form-check"><input class="form-check-input" asp-for="AllowDuplicate" /><label class="form-check-label" asp-for="AllowDuplicate">Allow duplicates (invoice already entered)</label></div></div>
+                </div>
+            </div>
+            <div class="card-footer"><button class="btn btn-primary"><i class="bi bi-magic"></i> Read invoice</button></div>
+        </form>
+    </div>
+    <div class="col-xl-5">
+        <form method="post" asp-page-handler="Manual" class="card">
+            <div class="card-header"><i class="bi bi-pencil-square"></i> Manual receipt</div>
+            <div class="card-body">
+                <p class="small-muted">For suppliers without a supported PDF, handwritten delivery notes, or scanned invoices.</p>
+                <label class="form-label">Supplier</label>
+                <select class="form-select mb-3" asp-for="ManualSupplierId">
+                    <option value="0">Choose…</option>
+                    @foreach (var s in Model.Suppliers) { <option value="@s.Id">@s.Name</option> }
+                </select>
+                <input type="hidden" name="PoId" value="@Model.PoId" />
+            </div>
+            <div class="card-footer"><button class="btn btn-outline-primary">Start manual receipt</button></div>
+        </form>
+        <div class="card mt-3"><div class="card-body small">
+            <strong>How matching works</strong>
+            <ol class="mb-0 ps-3">
+                <li>Supplier item code (learned from earlier receipts)</li>
+                <li>UPC/EAN barcode (also when the check digit is missing)</li>
+                <li>Product name</li>
+            </ol>
+            Once you link a line to a product and post, that supplier code is remembered for next time.
+        </div></div>
+    </div>
+</div>

@@ -1,0 +1,82 @@
+@page "{id:int}"
+@model SmAsia.Web.Pages.Import.BatchModel
+@{
+    var b = Model.Batch;
+    ViewData["Title"] = $"Import #{b.Id}";
+}
+
+<div class="page-head">
+    <div>
+        <h1>@b.Type import #@b.Id @if (b.Reversed) { @Fmt.Badge("Reversed", "neutral") }</h1>
+        <div class="sub">@b.FileName · @b.ImportedAt.ToString("g")@(b.PeriodFrom != null ? $" · {Fmt.Date(b.PeriodFrom)} – {Fmt.Date(b.PeriodTo)}" : "")</div>
+    </div>
+    @if (!b.Reversed && b.Type != ImportType.SupplierInvoice)
+    {
+        <form method="post" asp-page-handler="Reverse" asp-route-id="@b.Id">
+            <button class="btn btn-outline-danger" data-confirm="@(b.Type == ImportType.Sales ? "Remove all sales from this import and restore the stock it deducted?" : "Reverse the stock changes made by this import?")"><i class="bi bi-arrow-counterclockwise"></i> Reverse import</button>
+        </form>
+    }
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Rows read</div><div class="value">@b.RowsRead</div><div class="hint">@b.RowsSkipped skipped (blank / totals)</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Products</div><div class="value">@Model.ProductsAffected</div><div class="hint">@b.RowsImported rows imported</div></div></div>
+    @if (b.Type == ImportType.Sales)
+    {
+        <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Units sold</div><div class="value">@Fmt.Qty(Model.SalesUnits)</div><div class="hint">@(b.AffectedStock ? "deducted from stock" : "stock not changed")</div></div></div>
+        <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Net sales</div><div class="value">@Model.SalesAmount.ToString("C0")</div><div class="hint">matched products only</div></div></div>
+    }
+    else
+    {
+        <div class="col-lg-6"><div class="card kpi"><div class="label">Summary</div><div class="hint fs-6 text-body">@b.Log</div></div></div>
+    }
+</div>
+
+@if (b.Type == ImportType.Sales && !string.IsNullOrEmpty(b.Log))
+{
+    <div class="alert alert-info"><i class="bi bi-info-circle"></i> @b.Log</div>
+}
+
+@if (Model.Issues.Count > 0 && !b.Reversed)
+{
+    <div class="card">
+        <div class="card-header">Unmatched items (@Model.Issues.Count) <span class="small-muted">— link each to a product, or create it. The link is remembered for future imports.</span></div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Code</th><th>Name in report</th><th>Dates</th><th class="num">Qty</th><th class="num">Sales</th><th style="min-width:320px">Link to product</th><th style="min-width:260px">…or create new</th></tr></thead>
+                <tbody>
+                @foreach (var i in Model.Issues)
+                {
+                    <tr>
+                        <td class="small">@i.Code</td>
+                        <td>@i.Name</td>
+                        <td class="small">@Fmt.Date(i.From)@(i.To != i.From ? $" – {Fmt.Date(i.To)}" : "")<div class="small-muted">@i.Rows row@(i.Rows == 1 ? "" : "s")</div></td>
+                        <td class="num">@Fmt.Qty(i.Quantity)</td>
+                        <td class="num">@Fmt.Money(i.Amount)</td>
+                        <td>
+                            <form method="post" asp-page-handler="Resolve" asp-route-id="@b.Id" asp-route-issueId="@i.FirstIssueId" class="d-flex gap-1">
+                                <input class="form-control form-control-sm product-picker" placeholder="Search product…" value="@i.Name" />
+                                <input type="hidden" name="productId" />
+                                <button class="btn btn-sm btn-outline-primary">Link</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" asp-page-handler="Create" asp-route-id="@b.Id" asp-route-issueId="@i.FirstIssueId" class="d-flex gap-1">
+                                <select name="categoryId" class="form-select form-select-sm">
+                                    <option value="">Category…</option>
+                                    @foreach (var c in Model.Categories) { <option value="@c.Id">@c.Name</option> }
+                                </select>
+                                <button class="btn btn-sm btn-outline-secondary">Create</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (b.Type == ImportType.Sales && !b.Reversed)
+{
+    <div class="alert alert-success"><i class="bi bi-check-circle"></i> Every row matched a product.</div>
+}

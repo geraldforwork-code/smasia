@@ -1,0 +1,78 @@
+@page
+@model SmAsia.Web.Pages.Import.InventoryModel
+@{ ViewData["Title"] = "Import inventory"; }
+
+<div class="page-head">
+    <div><h1>Import inventory / product list</h1><div class="sub">Load products, categories, locations, expiry dates, prices and counts from a spreadsheet such as the SM ASIA inventory workbook.</div></div>
+    <a class="btn btn-link" href="/import">Import history</a>
+</div>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger"><ul class="mb-0">@foreach (var e in Model.Errors) { <li>@e</li> }</ul></div>
+}
+
+@if (Model.Mapping == null)
+{
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="card" style="max-width:760px">
+        <div class="card-body">
+            <div class="dropzone">
+                <i class="bi bi-file-earmark-excel"></i>
+                <p class="mb-2">Choose the inventory workbook (.xlsx) or a CSV</p>
+                <input type="file" name="Upload" accept=".xlsx,.xlsm,.csv" class="form-control" style="max-width:420px;margin:auto" required />
+            </div>
+            <p class="small-muted mt-3 mb-0">Products are matched by barcode first, then by name, so the same sheet can be imported again after a recount.</p>
+        </div>
+        <div class="card-footer"><button class="btn btn-primary">Next: choose sheet &amp; columns</button></div>
+    </form>
+}
+else
+{
+    var m = Model.Mapping;
+    <form method="get" class="card mb-3"><div class="card-body py-2 filters">
+        <input type="hidden" name="token" value="@Model.Token" />
+        <label class="small">Sheet</label>
+        <select name="sheet" class="form-select form-select-sm" onchange="this.form.headerRow.value='';this.form.submit()">
+            @foreach (var s in m.File.SheetNames) { <option selected="@(s == m.File.Sheet)">@s</option> }
+        </select>
+        <label class="small">Header row</label>
+        <input name="headerRow" type="number" min="0" class="form-control form-control-sm" style="width:80px" value="@m.HeaderRow" />
+        <button class="btn btn-sm btn-outline-secondary">Reload</button>
+    </div></form>
+
+    <form method="post" asp-page-handler="Import">
+        <input type="hidden" name="Token" value="@Model.Token" />
+        <input type="hidden" name="Sheet" value="@Model.Sheet" />
+        <input type="hidden" name="HeaderRow" value="@m.HeaderRow" />
+        <partial name="_Mapping" model="m" />
+
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-check"><input class="form-check-input" asp-for="CreateNew" /><label class="form-check-label" asp-for="CreateNew">Create products that don't exist yet</label></div>
+                    <div class="form-check"><input class="form-check-input" asp-for="UpdateExisting" /><label class="form-check-label" asp-for="UpdateExisting">Update details of existing products</label></div>
+                    <div class="form-check"><input class="form-check-input" asp-for="SetStock" /><label class="form-check-label" asp-for="SetStock">Set stock on hand from the quantity columns</label></div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">When both count columns are mapped</label>
+                    <select class="form-select" asp-for="CountMode">
+                        <option value="SecondIfPresent">Use the 2nd count when filled in (recount), otherwise the 1st</option>
+                        <option value="Sum">Add both counts (e.g. shelf + back room)</option>
+                        <option value="FirstOnly">Use the 1st count only</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Supplier for new products (optional)</label>
+                    <select class="form-select" asp-for="SupplierId">
+                        <option value="">—</option>
+                        @foreach (var s in Model.Suppliers) { <option value="@s.Id">@s.Name</option> }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+            <a class="btn btn-link" href="/import/inventory">Start over</a>
+            <button class="btn btn-primary"><i class="bi bi-cloud-arrow-up"></i> Import</button>
+        </div></div>
+    </form>
+}

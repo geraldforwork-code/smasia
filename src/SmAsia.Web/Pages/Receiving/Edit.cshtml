@@ -1,0 +1,134 @@
+@page "{id:int}"
+@model SmAsia.Web.Pages.Receiving.EditModel
+@{
+    var r = Model.Receipt;
+    ViewData["Title"] = r.InvoiceNumber ?? $"Receipt #{r.Id}";
+    var linesTotal = r.Lines.Where(l => !l.Skip).Sum(l => l.ExtendedCost);
+    var unmatched = r.Lines.Count(l => !l.Skip && l.ProductId == null);
+    var diff = r.InvoiceSubtotal is { } sub ? linesTotal - sub : (decimal?)null;
+    var ro = Model.IsPosted;
+}
+
+<div class="page-head">
+    <div>
+        <h1>@r.Supplier.Name — @(r.InvoiceNumber ?? $"Receipt #{r.Id}") @(ro ? Fmt.Badge("Posted", "ok") : Fmt.Badge("Draft", "warn"))</h1>
+        <div class="sub">@(r.SourceFileName != null ? $"Read from {r.SourceFileName}" : "Manual receipt")@(r.PostedAt != null ? $" · posted {r.PostedAt.Value.ToLocalTime():g}" : "")</div>
+    </div>
+    @if (!ro)
+    {
+        <form method="post" asp-page-handler="Delete" asp-route-id="@r.Id"><button class="btn btn-outline-danger" data-confirm="Delete this draft receipt?"><i class="bi bi-trash"></i> Delete draft</button></form>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(r.Notes) && !ro)
+{
+    <div class="alert alert-warning" style="white-space:pre-line"><i class="bi bi-info-circle"></i> @r.Notes</div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Lines</div><div class="value">@r.Lines.Count(l => !l.Skip)</div><div class="hint">@Fmt.Qty(r.Lines.Where(l => !l.Skip).Sum(l => l.QtyCases)) cases · @Fmt.Qty(r.Lines.Where(l => !l.Skip).Sum(l => l.QtyUnits)) units</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Need a product</div><div class="value @(unmatched > 0 ? "text-danger" : "text-success")">@unmatched</div><div class="hint">@(unmatched > 0 ? "link, create, or skip these" : "all lines matched")</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Lines total</div><div class="value">@Fmt.Money(linesTotal)</div><div class="hint">invoice subtotal @Fmt.Money(r.InvoiceSubtotal)</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card kpi"><div class="label">Check</div><div class="value">@if (diff == null) {<text>—</text>} else if (Math.Abs(diff.Value) < 0.05m) {@Fmt.Badge("Balanced", "ok")} else {@Fmt.Badge($"Off by {diff:C}", "bad")}</div><div class="hint">tax @Fmt.Money(r.InvoiceTax) · total @Fmt.Money(r.InvoiceTotal)</div></div></div>
+</div>
+
+<form method="post" asp-route-id="@r.Id">
+    <fieldset @(ro ? "disabled" : "")>
+    <div class="card mb-3"><div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-2"><label class="form-label">Received</label><input class="form-control" asp-for="ReceivedDate" type="date" /></div>
+            <div class="col-md-2"><label class="form-label">Invoice #</label><input class="form-control" asp-for="InvoiceNumber" /></div>
+            <div class="col-md-2"><label class="form-label">Invoice date</label><input class="form-control" asp-for="InvoiceDate" type="date" /></div>
+            <div class="col-md-2"><label class="form-label">Subtotal</label><input class="form-control" asp-for="InvoiceSubtotal" type="number" step="0.01" /></div>
+            <div class="col-md-1"><label class="form-label">Tax</label><input class="form-control" asp-for="InvoiceTax" type="number" step="0.01" /></div>
+            <div class="col-md-1"><label class="form-label">Total</label><input class="form-control" asp-for="InvoiceTotal" type="number" step="0.01" /></div>
+            <div class="col-md-2">
+                <label class="form-label">Purchase order</label>
+                <select class="form-select" asp-for="PurchaseOrderId">
+                    <option value="">— none —</option>
+                    @foreach (var po in Model.OpenPos) { <option value="@po.Id">@po.PoNumber</option> }
+                </select>
+            </div>
+        </div>
+    </div></div>
+
+    <div class="card">
+        <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <span>Invoice lines</span>
+            @if (!ro && unmatched > 0)
+            {
+                <span class="d-flex gap-2 align-items-center small">
+                    Category for new products:
+                    <select class="form-select form-select-sm" asp-for="NewProductCategoryId" style="width:auto">
+                        <option value="">—</option>
+                        @foreach (var c in Model.Categories) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                    <label class="form-check-label"><input type="checkbox" class="form-check-input" data-check-all=".new-check" /> Create all unmatched</label>
+                </span>
+            }
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>#</th><th>Code</th><th style="min-width:230px">Invoice description</th><th style="min-width:260px">Product</th><th class="num" style="width:85px">Cases</th><th class="num" style="width:80px">Units/cs</th><th class="num" style="width:100px">Cost/cs</th><th class="num">Unit cost</th><th class="num">Amount</th><th style="width:140px">Expiry</th><th>Skip</th>@if (!ro) {<th></th>}</tr></thead>
+                <tbody>
+                @for (int i = 0; i < Model.Lines.Count; i++)
+                {
+                    var l = Model.Lines[i];
+                    var rowClass = l.Skip ? "row-skip" : l.ProductId == null ? "row-unmatched" : "";
+                    <tr class="@rowClass">
+                        <td class="small-muted">@(i + 1)<input type="hidden" asp-for="Lines[i].Id" /></td>
+                        <td><input class="form-control form-control-sm" asp-for="Lines[i].SupplierItemCode" style="width:90px" /></td>
+                        <td>
+                            <input class="form-control form-control-sm" asp-for="Lines[i].Description" />
+                            <input class="form-control form-control-sm mt-1" asp-for="Lines[i].Upc" placeholder="UPC" style="width:150px" />
+                        </td>
+                        <td>
+                            <input class="form-control form-control-sm product-picker" value="@l.ProductLabel" placeholder="Search product…" />
+                            <input type="hidden" asp-for="Lines[i].ProductId" />
+                            <div class="small mt-1">
+                                @if (l.ProductId != null)
+                                {
+                                    @Fmt.Badge(l.MatchMethod ?? "Linked", l.MatchMethod == "Similar name" ? "warn" : "ok")
+                                    <span class="small-muted">on hand @Fmt.Qty(l.ProductOnHand ?? 0)</span>
+                                }
+                                else if (!l.Skip && !ro)
+                                {
+                                    <label class="form-check-label"><input type="checkbox" class="form-check-input new-check" asp-for="Lines[i].CreateNew" /> Create as new product</label>
+                                }
+                            </div>
+                        </td>
+                        <td><input class="form-control form-control-sm text-end" asp-for="Lines[i].QtyCases" type="number" step="any" /></td>
+                        <td><input class="form-control form-control-sm text-end" asp-for="Lines[i].UnitsPerCase" type="number" min="1" /></td>
+                        <td><input class="form-control form-control-sm text-end" asp-for="Lines[i].CaseCost" type="number" step="0.01" /></td>
+                        <td class="num small">@Fmt.Money(l.UnitsPerCase > 0 ? l.CaseCost / l.UnitsPerCase : 0)</td>
+                        <td class="num">@Fmt.Money(l.QtyCases * l.CaseCost)</td>
+                        <td><input class="form-control form-control-sm" asp-for="Lines[i].ExpiryDate" type="date" /></td>
+                        <td class="text-center"><input class="form-check-input" type="checkbox" asp-for="Lines[i].Skip" /></td>
+                        @if (!ro) { <td><button class="btn btn-sm btn-link text-danger p-0" name="action" value="delete-line:@l.Id" title="Remove line"><i class="bi bi-x-lg"></i></button></td> }
+                    </tr>
+                }
+                @if (!ro)
+                {
+                    <tr class="table-light">
+                        <td></td>
+                        <td colspan="3">
+                            <input class="form-control form-control-sm product-picker" placeholder="Add a line — search product…" data-target="#AddProductId" />
+                            <input type="hidden" asp-for="AddProductId" id="AddProductId" />
+                        </td>
+                        <td colspan="8"><button class="btn btn-sm btn-outline-primary" name="action" value="save"><i class="bi bi-plus"></i> Add</button></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (!ro)
+        {
+            <div class="sticky-actions d-flex flex-wrap gap-2 align-items-center">
+                <button class="btn btn-outline-primary" name="action" value="save"><i class="bi bi-save"></i> Save draft</button>
+                <button class="btn btn-primary" name="action" value="post" data-confirm="Post this receipt? Stock quantities and costs will be updated."><i class="bi bi-check2-circle"></i> Save &amp; post to stock</button>
+                <span class="small-muted ms-2">Units received = cases × units per case. Unit cost = cost per case ÷ units per case.</span>
+            </div>
+        }
+    </div>
+    </fieldset>
+</form>

@@ -1,0 +1,77 @@
+@page
+@model SmAsia.Web.Pages.Import.SalesModel
+@{ ViewData["Title"] = "Import EPOS sales"; }
+
+<div class="page-head">
+    <div><h1>Import EPOS sales</h1><div class="sub">Load a product sales report exported from the till (CSV or Excel). Sales feed the forecast and, optionally, reduce stock.</div></div>
+    <a class="btn btn-link" href="/import">Import history</a>
+</div>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger"><ul class="mb-0">@foreach (var e in Model.Errors) { <li>@e</li> }</ul></div>
+}
+
+@if (Model.Mapping == null)
+{
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="card" style="max-width:760px">
+        <div class="card-body">
+            <div class="dropzone">
+                <i class="bi bi-file-earmark-spreadsheet"></i>
+                <p class="mb-2">Choose a sales report (.csv or .xlsx)</p>
+                <input type="file" name="Upload" accept=".csv,.txt,.tsv,.xlsx,.xlsm" class="form-control" style="max-width:420px;margin:auto" required />
+            </div>
+            <div class="small-muted mt-3">
+                Any layout works: you'll match the columns on the next step, and the mapping is remembered for that report layout.
+                The report needs at least a <strong>quantity sold</strong> and a <strong>barcode/PLU</strong> or <strong>item description</strong> per row.
+                Reports with one row per item per day give the best forecasts. Period totals (e.g. a weekly report) are spread evenly across the days.
+            </div>
+        </div>
+        <div class="card-footer"><button class="btn btn-primary">Next: match columns</button></div>
+    </form>
+}
+else
+{
+    var m = Model.Mapping;
+    <form method="get" class="card mb-3"><div class="card-body py-2 filters">
+        <input type="hidden" name="token" value="@Model.Token" />
+        @if (m.File.SheetNames.Count > 1)
+        {
+            <label class="small">Sheet</label>
+            <select name="sheet" class="form-select form-select-sm" onchange="this.form.headerRow.value='';this.form.submit()">
+                @foreach (var s in m.File.SheetNames) { <option selected="@(s == m.File.Sheet)">@s</option> }
+            </select>
+        }
+        else { <input type="hidden" name="sheet" value="@Model.Sheet" /> }
+        <label class="small">Header row</label>
+        <input name="headerRow" type="number" min="0" class="form-control form-control-sm" style="width:80px" value="@m.HeaderRow" title="0 = first row" />
+        <button class="btn btn-sm btn-outline-secondary">Reload</button>
+        <span class="small-muted">Row numbers start at 0. Change this if the column names aren't picked up.</span>
+    </div></form>
+
+    <form method="post" asp-page-handler="Import">
+        <input type="hidden" name="Token" value="@Model.Token" />
+        <input type="hidden" name="Sheet" value="@Model.Sheet" />
+        <input type="hidden" name="HeaderRow" value="@m.HeaderRow" />
+        <partial name="_Mapping" model="m" />
+
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label">If there's no date column, this report covers:</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="date" class="form-control" asp-for="PeriodFrom" /> to <input type="date" class="form-control" asp-for="PeriodTo" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check"><input class="form-check-input" asp-for="DeductStock" /><label class="form-check-label" asp-for="DeductStock">Deduct sold quantities from stock on hand</label></div>
+                    <div class="form-check"><input class="form-check-input" asp-for="AllowDuplicate" /><label class="form-check-label" asp-for="AllowDuplicate">Import anyway if this file was imported before</label></div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <a class="btn btn-link" href="/import/sales">Start over</a>
+                    <button class="btn btn-primary"><i class="bi bi-cloud-arrow-up"></i> Import sales</button>
+                </div>
+            </div>
+        </div></div>
+    </form>
+}

@@ -1,0 +1,53 @@
+@page
+@model SmAsia.Web.Pages.PurchaseOrders.IndexModel
+@{ ViewData["Title"] = "Purchase orders"; }
+
+<div class="page-head">
+    <div><h1>Purchase orders</h1></div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="/forecast?needsOrder=true"><i class="bi bi-magic"></i> From reorder suggestions</a>
+        <a class="btn btn-primary" href="/purchaseorders/edit"><i class="bi bi-plus-lg"></i> New PO</a>
+    </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+    <form method="get" class="filters">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="open" selected="@(Model.Status == "open")">Open</option>
+            <option value="Draft" selected="@(Model.Status == "Draft")">Draft</option>
+            <option value="Sent" selected="@(Model.Status == "Sent")">Sent</option>
+            <option value="PartiallyReceived" selected="@(Model.Status == "PartiallyReceived")">Part received</option>
+            <option value="Received" selected="@(Model.Status == "Received")">Received</option>
+            <option value="Cancelled" selected="@(Model.Status == "Cancelled")">Cancelled</option>
+            <option value="all" selected="@(Model.Status == "all")">All</option>
+        </select>
+        <select name="supplierId" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All suppliers</option>
+            @foreach (var s in Model.Suppliers) { <option value="@s.Id" selected="@(s.Id == Model.SupplierId)">@s.Name</option> }
+        </select>
+    </form>
+</div></div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead><tr><th>PO #</th><th>Supplier</th><th>Ordered</th><th>Expected</th><th class="num">Lines</th><th class="num">Cases</th><th class="num">Total</th><th>Status</th></tr></thead>
+            <tbody>
+            @foreach (var po in Model.Orders)
+            {
+                <tr>
+                    <td><a class="fw-semibold" href="@(po.Status == PurchaseOrderStatus.Draft ? $"/purchaseorders/edit/{po.Id}" : $"/purchaseorders/view/{po.Id}")">@po.PoNumber</a></td>
+                    <td>@po.Supplier.Name</td>
+                    <td>@Fmt.Date(po.OrderDate)</td>
+                    <td>@Fmt.Date(po.ExpectedDate)</td>
+                    <td class="num">@po.Lines.Count</td>
+                    <td class="num">@Fmt.Qty(po.Lines.Sum(l => l.QtyCases))</td>
+                    <td class="num">@Fmt.Money(po.Total)</td>
+                    <td>@Fmt.PoStatus(po.Status)</td>
+                </tr>
+            }
+            @if (Model.Orders.Count == 0) { <tr><td colspan="8" class="muted p-3">No purchase orders.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+</div>
