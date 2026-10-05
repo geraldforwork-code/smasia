@@ -1,8 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/SmAsia.Web/SmAsia.Web.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/SmAsia.Tests/SmAsia.Tests.csproj" />
-  </Folder>
-</Solution>

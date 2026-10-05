@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-brand: #c8102e;
+  --color-brand-dark: #9e0c24;
+  --radius-sm: 0;
+  --radius: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-full: 0;
+}
+
+:root {
+  --canvas: #eceef1;
+  --panel: #ffffff;
+  --line: #c9ced6;
+  --ink: #0b0f14;
+  --muted: #5b6573;
+  color-scheme: light;
+}
+.dark {
+  --canvas: #07090c;
+  --panel: #10141a;
+  --line: #262d37;
+  --ink: #eef1f5;
+  --muted: #8b95a3;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes laser {
+  0%, 100% { top: 12%; }
+  50% { top: 86%; }
+}
+.laser { animation: laser 1.8s ease-in-out infinite; }
+
+@keyframes ping-badge {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.badge-pulse { animation: ping-badge 1.2s ease-in-out infinite; }
+
+@media print {
+  @page { size: letter; margin: 0.5in 0.25in; }
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; inset: 0 auto auto 0; width: 100%; }
+  .sheet { break-after: page; }
+}

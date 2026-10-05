@@ -1,11 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "smasia-web",
-      "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/SmAsia.Web", "--urls", "http://localhost:5080"],
-      "port": 5080
-    }
+    { "name": "smasia", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
   ]
 }

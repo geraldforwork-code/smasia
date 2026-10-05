@@ -1,0 +1,27 @@
+{
+    // F5 → "SM ASIA: run app": starts the Express + Vite server (npm run dev) and opens http://localhost:3000 when it's up.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "SM ASIA: run app",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "pattern": "(http://localhost:[0-9]+)",
+                "uriFormat": "%s",
+                "action": "openExternally"
+            }
+        },
+        {
+            "name": "Chrome: debug UI (app already running)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}
